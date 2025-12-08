@@ -7,5 +7,33 @@ CREATE TABLE service_requests (
   preferred_datetime DATETIME NULL,
   proposed_budget DECIMAL(10,2) NULL,
   notes TEXT,
+  status VARCHAR(50) DEFAULT 'open',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE negotiations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  service_request_id INT NOT NULL,
+  proposer_id INT NULL,
+  role VARCHAR(20), -- 'admin' | 'client' | 'system'
+  action VARCHAR(50), -- 'quote' | 'reject' | 'counter' | 'accept' | 'cancel'
+  proposed_price DECIMAL(10,2) NULL,
+  proposed_start DATETIME NULL,
+  proposed_end DATETIME NULL,
+  note TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
+);
+
+CREATE TABLE service_orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  service_request_id INT NOT NULL,
+  provider_id INT NULL,
+  client_id INT NULL,
+  price DECIMAL(10,2) NULL,
+  scheduled_start DATETIME NULL,
+  scheduled_end DATETIME NULL,
+  status VARCHAR(50) DEFAULT 'scheduled',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
 );

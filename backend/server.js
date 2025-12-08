@@ -172,9 +172,7 @@ app.get("/admin/service-requests", authenticateToken, (req, res) => {
         username.toLowerCase() !== "admin" &&
         username.toLowerCase() !== "root")
     ) {
-      return res
-        .status(403)
-        .json({ message: "admin only" });
+      return res.status(403).json({ message: "admin only" });
     }
 
     // Select open requests (treat NULL as open)
@@ -190,18 +188,139 @@ app.get("/admin/service-requests", authenticateToken, (req, res) => {
   });
 });
 
-// Note: negotiation history and negotiation endpoints were removed.
-// Provide a simple GET route to return a single service request (no negotiations).
-app.get("/service-requests/:id", authenticateToken, (req, res) => {
+// Admin respond to a service request (quote or reject) - plural route used by frontend
+app.post("/service-requests/:id/respond", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
   const reqId = req.params.id;
+  const { action, proposed_price, proposed_start, proposed_end, note } =
+    req.body; // action: 'quote' or 'reject'
+
+  // Verify admin by username
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" &&
+        username.toLowerCase() !== "admin" &&
+        username.toLowerCase() !== "root")
+    ) {
+      return res.status(403).json({ message: "Only admin can respond" });
+    }
+
+    const q =
+      "INSERT INTO negotiations (service_request_id, proposer_id, role, action, proposed_price, proposed_start, proposed_end, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    db.query(
+      q,
+      [
+        reqId,
+        userId,
+        "admin",
+        action,
+        proposed_price || null,
+        proposed_start || null, // if they dont put anything for these it'll just be null in my db :)
+        proposed_end || null,
+        note || null,
+      ],
+      (err2, result) => {
+        if (err2) {
+          console.error("respond insert error:", err2);
+          return res.status(500).json({ message: "DB error", error: err2 });
+        }
+        if (action === "reject") {
+          db.query(
+            "UPDATE service_requests SET status = ? WHERE id = ?",
+            ["rejected", reqId],
+            () => {}
+          );
+        }
+        return res
+          .status(201)
+          .json({ message: "Response recorded", id: result.insertId });
+      }
+    );
+  });
+});
+
+// Client counter (plural path) - add negotiation entry
+app.post("/service-requests/:id/counter", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  const reqId = req.params.id;
+  const { note, proposed_price, proposed_start, proposed_end } = req.body;
+
+  const q =
+    "INSERT INTO negotiations (service_request_id, proposer_id, role, action, proposed_price, proposed_start, proposed_end, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
   db.query(
-    "SELECT sr.*, u.username AS client_username FROM service_requests sr LEFT JOIN users u ON sr.user_id = u.id WHERE sr.id = ?",
-    [reqId],
+    q,
+    [
+      reqId,
+      userId,
+      "client",
+      "counter",
+      proposed_price || null,
+      proposed_start || null,
+      proposed_end || null,
+      note || null,
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("counter insert error:", err);
+        return res.status(500).json({ message: "DB error", error: err });
+      }
+      db.query(
+        "UPDATE service_requests SET status = ? WHERE id = ?",
+        ["negotiating", reqId],
+        () => {}
+      );
+      return res
+        .status(201)
+        .json({ message: "Counter recorded", id: result.insertId });
+    }
+  );
+});
+
+// accept negotation and create the order (remember to add a page for admin to see all the orders later maybe? idk)
+app.post("/service-requests/:id/accept", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  const reqId = req.params.id;
+  const { negotiation_id } = req.body; // save this so we have history of negotiations
+
+  db.query(
+    "SELECT * FROM negotiations WHERE id = ? AND service_request_id = ?",
+    [negotiation_id, reqId],
     (err, rows) => {
       if (err) return res.status(500).json({ message: "DB error", error: err });
       if (!rows || rows.length === 0)
-        return res.status(404).json({ message: "Request not found" });
-      return res.json({ request: rows[0] });
+        return res.status(404).json({ message: "Negotiation not found" });
+      const n = rows[0];
+
+      db.query(
+        "INSERT INTO service_orders (service_request_id, provider_id, client_id, price, scheduled_start, scheduled_end, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          reqId,
+          n.proposer_id,
+          userId,
+          n.proposed_price || null,
+          n.proposed_start || null,
+          n.proposed_end || null,
+          "scheduled",
+        ],
+        (err2, result) => {
+          if (err2) {
+            console.error("order insert error:", err2);
+            return res.status(500).json({ message: "DB error", error: err2 });
+          }
+          db.query(
+            "UPDATE service_requests SET status = ? WHERE id = ?",
+            ["accepted", reqId],
+            () => {}
+          );
+          return res.status(201).json({
+            message: "Service order created",
+            orderId: result.insertId,
+          });
+        }
+      );
     }
   );
 });
