@@ -1,5 +1,5 @@
 
-# Project Title
+# Database Project 2
 
 This project is a web application that implements JWT (JSON Web Token) based authentication. It has a simple frontend built with React and a backend built with Express and MySQL.
 
@@ -18,15 +18,11 @@ Follow these steps to clone and run this project on your local machine.
 First, clone this repository to your local machine.
 
 ```bash
-git clone https://github.com/atahabilder1/jwt-auth-tutorial.git
+git clone https://github.com/justshou/database-project-2.git
 ```
 
  
-After cloning, navigate into the project directory:
-
-```bash
-cd jwt-auth-tutorial
-```
+After cloning, navigate into the project directory
 
 ### Step 2: Set Up the Backend (Express & MySQL)
 
