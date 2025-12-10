@@ -41,3 +41,93 @@ CREATE TABLE service_orders (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
 );
+
+CREATE TABLE bills (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id INT,
+      client_id INT,
+      amount DECIMAL(10,2),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      paid_at DATETIME DEFAULT NULL,
+      status VARCHAR(20) DEFAULT 'unpaid'
+);
+
+-- Create service service request 
+INSERT INTO service_requests (user_id, service_address, type_of_cleaning, number_of_rooms, preferred_datetime, proposed_budget, notes) VALUES (?, ?, ?, ?, ?, ?, ?)
+
+-- Create user 
+INSERT INTO users (username, email, password, first_name, last_name, address, phone, credit_card) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+-- For login
+SELECT * FROM users WHERE username = ?
+
+-- Check service requests 
+SELECT sr.*, u.username AS client_username FROM service_requests sr LEFT JOIN users u ON sr.user_id = u.id WHERE COALESCE(sr.status, 'open') = 'open' ORDER BY sr.created_at DESC
+
+
+-- for admin mode
+-- Check most frequent clients (limited to 5 because it could be too many) 
+SELECT u.id AS client_id, u.username, COUNT(so.id) AS orders_count
+      FROM service_orders so
+      JOIN users u ON so.client_id = u.id
+      GROUP BY u.id, u.username
+      ORDER BY orders_count DESC
+      LIMIT 5
+
+-- Check clients that havent placed a request yet
+SELECT u.id AS client_id, u.username, u.email, u.first_name, u.last_name, COUNT(sr.id) AS requests_count
+        FROM users u
+        LEFT JOIN service_requests sr ON sr.user_id = u.id
+        GROUP BY u.id, u.username, u.email, u.first_name, u.last_name
+        HAVING requests_count = 0
+        ORDER BY u.username ASC
+
+-- Show jobs that have the most rooms so far 
+SELECT so.id AS order_id, so.price, so.scheduled_start, so.scheduled_end, so.status AS order_status,
+               sr.number_of_rooms, sr.service_address, cu.username AS client_username, pu.username AS provider_username
+        FROM service_orders so
+        LEFT JOIN service_requests sr ON so.service_request_id = sr.id
+        LEFT JOIN users cu ON so.client_id = cu.id
+        LEFT JOIN users pu ON so.provider_id = pu.id
+        ORDER BY COALESCE(sr.number_of_rooms, 0) DESC
+        LIMIT 5
+
+-- Uncommitted clients
+SELECT u.id AS client_id, u.username, COUNT(sr.id) AS requests_count
+      FROM users u
+      JOIN service_requests sr ON sr.user_id = u.id
+      LEFT JOIN service_orders so ON so.client_id = u.id
+      WHERE so.id IS NULL
+      GROUP BY u.id, u.username
+      HAVING requests_count >= 3
+      ORDER BY requests_count DESC
+      LIMIT 50
+
+-- Accepted quotes for the month
+(I never got this to work, I think the problem was the way I was converting time in JS)
+
+-- Accept / Decline / Negotiate
+INSERT INTO negotiations (service_request_id, proposer_id, role, action, proposed_price, proposed_start, proposed_end, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+-- Client negotiation (couldn't get to work on time)
+INSERT INTO negotiations (service_request_id, proposer_id, role, action, proposed_price, proposed_start, proposed_end, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+-- If the above worked, update the status from "open" to "negotiating"
+UPDATE service_requests SET status = ? WHERE id = ?
+
+-- Accepted negotation:
+INSERT INTO service_orders (service_request_id, provider_id, client_id, price, scheduled_start, scheduled_end, status) VALUES (?, ?, ?, ?, ?, ?, ?)
+
+-- Insert into bills
+INSERT INTO bills (order_id, client_id, amount, status) VALUES (?, ?, ?, ?)
+
+-- Display bills for customers
+SELECT b.id AS bill_id, b.order_id, b.amount, b.created_at, b.paid_at, b.status, so.service_request_id, sr.service_address
+FROM bills b
+LEFT JOIN service_orders so ON b.order_id = so.id
+LEFT JOIN service_requests sr ON so.service_request_id = sr.id
+WHERE b.client_id = ?
+ORDER BY b.created_at DESC
+
+-- Update bills
+UPDATE bills SET paid_at = NOW(), status = ? WHERE id = ?

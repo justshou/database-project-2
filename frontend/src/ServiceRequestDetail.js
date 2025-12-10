@@ -5,12 +5,12 @@ import axios from "axios";
 const ServiceRequestDetail = () => {
   const { id } = useParams();
   const [data, setData] = useState(null);
-  const [note, setNote] = useState("");
-  const [price, setPrice] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [note] = useState("");
+  const [price] = useState("");
+  const [start] = useState("");
+  const [end] = useState("");
   const [profile, setProfile] = useState(null);
-  const [error, setError] = useState("");
+  const [error] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -26,7 +26,7 @@ const ServiceRequestDetail = () => {
       );
       setData(res.data);
     } catch (err) {
-      setError("Failed to fetch request");
+      return err;
     }
   };
 
@@ -43,7 +43,7 @@ const ServiceRequestDetail = () => {
   };
 
   const adminResponse = async (action) => {
-    // action = 'quote' or 'reject'
+    // quote or reject the quote
     try {
       const token = localStorage.getItem("token");
       await axios.post(
@@ -78,7 +78,7 @@ const ServiceRequestDetail = () => {
       );
       fetchData();
     } catch (err) {
-      setError("Failed to send counter");
+      return err;
     }
   };
 
@@ -92,7 +92,7 @@ const ServiceRequestDetail = () => {
       );
       fetchData();
     } catch (err) {
-      setError("Failed to accept quote");
+      return err;
     }
   };
 
@@ -100,7 +100,7 @@ const ServiceRequestDetail = () => {
   const isAdmin =
     profile &&
     profile.username &&
-    ["anna", "admin", "root"].includes(profile.username.toLowerCase());
+    ["anna", "admin"].includes(profile.username.toLowerCase());
 
   return (
     <div>

@@ -104,11 +104,60 @@ const Dashboard = () => {
             </Link>
           </li>
 
+          <li>
+            <Link
+              to="/bills"
+              style={{
+                textDecoration: "none",
+                fontSize: "1.2rem",
+                color: "#007bff",
+                padding: "10px 20px",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "4px",
+              }}
+            >
+              Bills
+            </Link>
+          </li>
+
           {profile &&
             profile.username &&
-            ["anna", "admin", "root"].includes(
-              profile.username.toLowerCase()
-            ) && (
+            // show only to me
+            (["anna", "admin"].includes(profile.username.toLowerCase()) ? (
+              <>
+                <li>
+                  <Link
+                    to="/admin/requests"
+                    style={{
+                      textDecoration: "none",
+                      fontSize: "1.2rem",
+                      color: "#007bff",
+                      padding: "10px 20px",
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    View Open Requests
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/mode"
+                    style={{
+                      textDecoration: "none",
+                      fontSize: "1.2rem",
+                      color: "#007bff",
+                      padding: "10px 20px",
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Admin Mode
+                  </Link>
+                </li>
+              </>
+            ) : (
+              // non-admin users should still be able to view their own requests
               <li>
                 <Link
                   to="/admin/requests"
@@ -124,7 +173,7 @@ const Dashboard = () => {
                   View Open Requests
                 </Link>
               </li>
-            )}
+            ))}
 
           <li>
             <button

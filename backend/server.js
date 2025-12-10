@@ -168,9 +168,7 @@ app.get("/admin/service-requests", authenticateToken, (req, res) => {
     const username = rows && rows[0] && rows[0].username;
     if (
       !username ||
-      (username.toLowerCase() !== "anna" &&
-        username.toLowerCase() !== "admin" &&
-        username.toLowerCase() !== "root")
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
     ) {
       return res.status(403).json({ message: "admin only" });
     }
@@ -188,6 +186,173 @@ app.get("/admin/service-requests", authenticateToken, (req, res) => {
   });
 });
 
+// Admin: top frequent clients by number of service orders (only gonna show 5 tho)
+app.get("/admin/users", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only admin can access this resource" });
+    }
+
+    const q = `
+      SELECT u.id AS client_id, u.username, COUNT(so.id) AS orders_count
+      FROM service_orders so
+      JOIN users u ON so.client_id = u.id
+      GROUP BY u.id, u.username
+      ORDER BY orders_count DESC
+      LIMIT 5
+    `;
+
+    db.query(q, [], (err2, results) => {
+      if (err2)
+        return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ clients: results });
+    });
+  });
+});
+
+// users without any requests
+app.get("/admin/prospective-clients", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only admin can access this resource" });
+    }
+
+    const q = `
+        SELECT u.id AS client_id, u.username, u.email, u.first_name, u.last_name, COUNT(sr.id) AS requests_count
+        FROM users u
+        LEFT JOIN service_requests sr ON sr.user_id = u.id
+        GROUP BY u.id, u.username, u.email, u.first_name, u.last_name
+        HAVING requests_count = 0
+        ORDER BY u.username ASC
+      `;
+
+    db.query(q, [], (err2, results) => {
+      if (err2)
+        return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ clients: results });
+    });
+  });
+});
+
+// largest jobs by rooms serviced (top 5 again)
+app.get("/admin/largest-jobs", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only admin can access this resource" });
+    }
+
+    const q = `
+        SELECT so.id AS order_id, so.price, so.scheduled_start, so.scheduled_end, so.status AS order_status,
+               sr.number_of_rooms, sr.service_address, cu.username AS client_username, pu.username AS provider_username
+        FROM service_orders so
+        LEFT JOIN service_requests sr ON so.service_request_id = sr.id
+        LEFT JOIN users cu ON so.client_id = cu.id
+        LEFT JOIN users pu ON so.provider_id = pu.id
+        ORDER BY COALESCE(sr.number_of_rooms, 0) DESC
+        LIMIT 5
+      `;
+
+    db.query(q, [], (err2, results) => {
+      if (err2)
+        return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ jobs: results });
+    });
+  });
+});
+
+// Admin: uncommitted clients - submitted >=3 requests but have no orders
+app.get("/admin/uncommitted-clients", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only admin can access this resource" });
+    }
+
+    const q = `
+      SELECT u.id AS client_id, u.username, COUNT(sr.id) AS requests_count
+      FROM users u
+      JOIN service_requests sr ON sr.user_id = u.id
+      LEFT JOIN service_orders so ON so.client_id = u.id
+      WHERE so.id IS NULL
+      GROUP BY u.id, u.username
+      HAVING requests_count >= 3
+      ORDER BY requests_count DESC
+      LIMIT 50
+    `;
+
+    db.query(q, [], (err2, results) => {
+      if (err2)
+        return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ clients: results });
+    });
+  });
+});
+
+// Admin: accepted quotes (orders) for a given month/year
+app.get("/admin/accepted-quotes", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (
+      !username ||
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only admin can access this resource" });
+    }
+
+    // get this month/ year so I can actually search it
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const month = parseInt(req.query.month, 10) || new Date().getMonth() + 1;
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month - 1 + 1, 1));
+
+    // figure this out later
+    const q = `
+      SELECT * FROM service_orders
+    `;
+
+    db.query(q, [start, end], (err2, results) => {
+      if (err2)
+        return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ quotes: results, year, month });
+    });
+  });
+});
+
 // Admin respond to a service request (quote or reject) - plural route used by frontend
 app.post("/service-requests/:id/respond", authenticateToken, (req, res) => {
   const userId = req.user.userId;
@@ -201,9 +366,7 @@ app.post("/service-requests/:id/respond", authenticateToken, (req, res) => {
     const username = rows && rows[0] && rows[0].username;
     if (
       !username ||
-      (username.toLowerCase() !== "anna" &&
-        username.toLowerCase() !== "admin" &&
-        username.toLowerCase() !== "root")
+      (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")
     ) {
       return res.status(403).json({ message: "Only admin can respond" });
     }
@@ -315,9 +478,74 @@ app.post("/service-requests/:id/accept", authenticateToken, (req, res) => {
             ["accepted", reqId],
             () => {}
           );
-          return res.status(201).json({
-            message: "Service order created",
-            orderId: result.insertId,
+          const orderId = result.insertId;
+          // create a bill for the client for this order
+          const billAmount = n.proposed_price || null;
+          const billClientId = userId;
+          db.query(
+            "INSERT INTO bills (order_id, client_id, amount, status) VALUES (?, ?, ?, ?)",
+            [orderId, billClientId, billAmount, "unpaid"],
+            (err3, billRes) => {
+              if (err3) console.error("bill insert error:", err3);
+              return res.status(201).json({
+                message: "Service order created",
+                orderId: orderId,
+                billId: billRes && billRes.insertId ? billRes.insertId : null,
+              });
+            }
+          );
+
+          // Client: list their bills
+          app.get("/bills", authenticateToken, (req, res) => {
+            const userId = req.user.userId;
+            const q = `
+              SELECT b.id AS bill_id, b.order_id, b.amount, b.created_at, b.paid_at, b.status,
+                     so.service_request_id, sr.service_address
+              FROM bills b
+              LEFT JOIN service_orders so ON b.order_id = so.id
+              LEFT JOIN service_requests sr ON so.service_request_id = sr.id
+              WHERE b.client_id = ?
+              ORDER BY b.created_at DESC
+            `;
+            db.query(q, [userId], (err, results) => {
+              if (err)
+                return res
+                  .status(500)
+                  .json({ message: "DB error", error: err });
+              return res.json({ bills: results });
+            });
+          });
+
+          // Client: pay a bill (mark paid)
+          app.post("/bills/:id/pay", authenticateToken, (req, res) => {
+            const userId = req.user.userId;
+            const billId = req.params.id;
+
+            // ensure bill belongs to the user
+            db.query(
+              "SELECT * FROM bills WHERE id = ? AND client_id = ?",
+              [billId, userId],
+              (err, rows) => {
+                if (err)
+                  return res
+                    .status(500)
+                    .json({ message: "DB error", error: err });
+                if (!rows || rows.length === 0)
+                  return res.status(404).json({ message: "Bill not found" });
+
+                db.query(
+                  "UPDATE bills SET paid_at = NOW(), status = ? WHERE id = ?",
+                  ["paid", billId],
+                  (err2) => {
+                    if (err2)
+                      return res
+                        .status(500)
+                        .json({ message: "DB error", error: err2 });
+                    return res.json({ message: "Bill paid" });
+                  }
+                );
+              }
+            );
           });
         }
       );
