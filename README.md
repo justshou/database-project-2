@@ -1,4 +1,3 @@
-
 # Database Project 2
 
 This project is a web application that implements JWT (JSON Web Token) based authentication. It has a simple frontend built with React and a backend built with Express and MySQL.
@@ -6,6 +5,7 @@ This project is a web application that implements JWT (JSON Web Token) based aut
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
+
 - **Node.js** (v14 or later) and npm (Node Package Manager)
 - **MySQL** (Ensure that you have MySQL installed and running)
 
@@ -21,7 +21,6 @@ First, clone this repository to your local machine.
 git clone https://github.com/justshou/database-project-2.git
 ```
 
- 
 After cloning, navigate into the project directory
 
 ### Step 2: Set Up the Backend (Express & MySQL)
@@ -49,11 +48,66 @@ After cloning, navigate into the project directory
    USE jwt_auth_db;
 
    CREATE TABLE users (
-       id INT AUTO_INCREMENT PRIMARY KEY,
-       username VARCHAR(100) NOT NULL,
-       email VARCHAR(100) NOT NULL UNIQUE,
-       password VARCHAR(255) NOT NULL,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(100) NOT NULL,
+      email VARCHAR(100) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
+      first_name VARCHAR(100),
+      last_name VARCHAR(100),
+      address TEXT,
+      phone VARCHAR(50),
+      credit_card VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+
+   CREATE TABLE service_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      service_address TEXT,
+      type_of_cleaning VARCHAR(255),
+      number_of_rooms INT,
+      preferred_datetime DATETIME NULL,
+      proposed_budget DECIMAL(10,2) NULL,
+      notes TEXT,
+      status VARCHAR(50) DEFAULT 'open',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+
+   CREATE TABLE negotiations (
+   id INT AUTO_INCREMENT PRIMARY KEY,
+   service_request_id INT NOT NULL,
+   proposer_id INT NULL,
+   role VARCHAR(20), -- 'admin' | 'client' | 'system'
+   action VARCHAR(50), -- 'quote' | 'reject' | 'counter' | 'accept' | 'cancel'
+   proposed_price DECIMAL(10,2) NULL,
+   proposed_start DATETIME NULL,
+   proposed_end DATETIME NULL,
+   note TEXT,
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
+   );
+
+   CREATE TABLE service_orders (
+   id INT AUTO_INCREMENT PRIMARY KEY,
+   service_request_id INT NOT NULL,
+   provider_id INT NULL,
+   client_id INT NULL,
+   price DECIMAL(10,2) NULL,
+   scheduled_start DATETIME NULL,
+   scheduled_end DATETIME NULL,
+   status VARCHAR(50) DEFAULT 'scheduled',
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   FOREIGN KEY (service_request_id) REFERENCES service_requests(id)
+   );
+
+   CREATE TABLE bills (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+         order_id INT,
+         client_id INT,
+         amount DECIMAL(10,2),
+         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+         paid_at DATETIME DEFAULT NULL,
+         status VARCHAR(20) DEFAULT 'unpaid'
    );
    ```
 

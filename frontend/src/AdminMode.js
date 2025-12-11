@@ -17,7 +17,10 @@ const AdminMode = () => {
           <Link to="/admin/uncommitted-clients">Uncommitted Clients</Link>
         </li>
         <li>
-          <Link to="/admin/accepted-quotes">Accepted Quotes</Link>
+          <Link to="/admin/accepted-quotes">Accepted Quotes (This Month)</Link>
+        </li>
+        <li>
+          <Link to="/admin/all-accepted-quotes">All Accepted Quotes</Link>
         </li>
         <li>
           <Link to="/admin/prospective-clients">Prospective Clients</Link>

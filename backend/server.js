@@ -353,6 +353,33 @@ app.get("/admin/accepted-quotes", authenticateToken, (req, res) => {
   });
 });
 
+// Admin: all accepted quotes (no date filter)
+app.get("/admin/all-accepted-quotes", authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  db.query("SELECT username FROM users WHERE id = ?", [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err });
+    const username = rows && rows[0] && rows[0].username;
+    if (!username || (username.toLowerCase() !== "anna" && username.toLowerCase() !== "admin")) {
+      return res.status(403).json({ message: "Only admin can access this resource" });
+    }
+
+    const q = `
+      SELECT so.id AS order_id, so.service_request_id, so.price, so.scheduled_start, so.scheduled_end, so.status AS order_status, so.created_at AS order_created_at,
+             cu.username AS client_username, pu.username AS provider_username, sr.service_address
+      FROM service_orders so
+      LEFT JOIN users cu ON so.client_id = cu.id
+      LEFT JOIN users pu ON so.provider_id = pu.id
+      LEFT JOIN service_requests sr ON so.service_request_id = sr.id
+      ORDER BY so.created_at DESC
+    `;
+
+    db.query(q, [], (err2, results) => {
+      if (err2) return res.status(500).json({ message: "DB error", error: err2 });
+      return res.json({ quotes: results });
+    });
+  });
+});
+
 // Admin respond to a service request (quote or reject) - plural route used by frontend
 app.post("/service-requests/:id/respond", authenticateToken, (req, res) => {
   const userId = req.user.userId;

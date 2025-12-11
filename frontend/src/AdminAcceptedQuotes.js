@@ -35,7 +35,6 @@ const AdminAcceptedQuotes = () => {
             <th style={{ textAlign: "left", padding: "8px" }}>#</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Date</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Client</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Provider</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Price</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Address</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Scheduled</th>
@@ -53,9 +52,6 @@ const AdminAcceptedQuotes = () => {
               </td>
               <td style={{ padding: "8px" }}>
                 {q.client_username || q.client_name || "-"}
-              </td>
-              <td style={{ padding: "8px" }}>
-                {q.provider_username || q.provider_name || "-"}
               </td>
               <td style={{ padding: "8px" }}>{q.price ?? "-"}</td>
               <td style={{ padding: "8px" }}>{q.service_address || "-"}</td>

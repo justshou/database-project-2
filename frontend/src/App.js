@@ -15,6 +15,7 @@ import AdminAcceptedQuotes from "./AdminAcceptedQuotes";
 import AdminProspective from "./AdminProspective";
 import AdminLargestJobs from "./AdminLargestJobs";
 import Bills from "./Bills";
+import AdminAllAcceptedQuotes from "./AdminAllAcceptedQuotes";
 import PrivateRoute from "./PrivateRoute"; // Importing the PrivateRoute component for protected routes
 
 function App() {
@@ -88,6 +89,14 @@ function App() {
           element={
             <PrivateRoute>
               <AdminAcceptedQuotes />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/all-accepted-quotes"
+          element={
+            <PrivateRoute>
+              <AdminAllAcceptedQuotes />
             </PrivateRoute>
           }
         />
